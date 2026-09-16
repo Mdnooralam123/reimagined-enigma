@@ -1,6 +1,7 @@
 # ============================================================
-# OTP SENDER — Clean Version (No Admin)
+# OTP SENDER — Full Working
 # Dual API · 20 Parallel/Sec · Success/Fail Separate Downloads
+# Vercel + Railway Compatible
 # ============================================================
 
 import json
@@ -24,12 +25,13 @@ API_1 = "https://swap-account-hack-u3lo.vercel.app/send_otp?accesstoken={TOKEN}&
 API_2 = "https://unsubscribe-otp-3fpg.vercel.app/email_otp?email={EMAIL}"
 
 PARALLEL_PER_API = 20
-CYCLE_INTERVAL = 3.0
+CYCLE_INTERVAL = 1.0
 
 app = Flask(__name__)
 app.secret_key = "otp-clean-secret"
 
-RUNNING = {}  # { uid: { pid: {"stop": bool} } }
+# In-memory running state
+RUNNING = {}
 
 # ============================================================
 # STORAGE
@@ -128,19 +130,17 @@ def worker(uid, pid):
         now_str = datetime.now(TIMEZONE).strftime("%H:%M:%S")
         now_full = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M:%S")
 
-        # Rebuild successes / failures
         new_success = []
         new_fail = []
-        for i, r in enumerate(res1):
+        for r in res1:
             ok, body = r if r else (False, "timeout")
             entry = {"api": "API1", "email": email, "time": now_full, "body": body}
             (new_success if ok else new_fail).append(entry)
-        for i, r in enumerate(res2):
+        for r in res2:
             ok, body = r if r else (False, "timeout")
             entry = {"api": "API2", "email": email, "time": now_full, "body": body}
             (new_success if ok else new_fail).append(entry)
 
-        # Update
         d = load()
         usr = d["users"].get(uid)
         if usr and pid in usr.get("pairs", {}):
@@ -183,7 +183,7 @@ def is_running(uid, pid):
     return uid in RUNNING and pid in RUNNING[uid] and not RUNNING[uid][pid].get("stop")
 
 # ============================================================
-# HTML UI
+# HTML UI (Same Premium UI)
 # ============================================================
 HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -208,17 +208,12 @@ pointer-events:none;z-index:0}
 @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(6,182,212,.4),0 0 40px rgba(6,182,212,.1)}
 50%{box-shadow:0 0 30px rgba(6,182,212,.7),0 0 60px rgba(6,182,212,.2)}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @keyframes slideIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-@keyframes rotate{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 @keyframes gradientShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 @keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
-
 .header{display:flex;justify-content:space-between;align-items:center;padding:8px 0 24px;
 animation:slideIn .6s ease}
-.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;
-letter-spacing:-.5px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.5px}
 .logo-icon{width:40px;height:40px;border-radius:12px;
 background:linear-gradient(135deg,var(--cyan),var(--blue));
 display:flex;align-items:center;justify-content:center;font-size:20px;
@@ -229,42 +224,33 @@ animation:glow 3s infinite}
 border-radius:999px;background:rgba(255,255,255,.05);
 border:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.5px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:.3s}
-.dot.run{background:var(--green);box-shadow:0 0 12px var(--green);
-animation:pulse 1.4s infinite}
+.dot.run{background:var(--green);box-shadow:0 0 12px var(--green);animation:pulse 1.4s infinite}
 .dot.stop{background:#475569}
-
 .card{background:var(--card);backdrop-filter:blur(20px);
 border:1px solid var(--border);border-radius:20px;padding:20px;margin-bottom:16px;
 animation:slideIn .6s ease;position:relative;overflow:hidden}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
-background:linear-gradient(90deg,transparent,var(--cyan),transparent);
-opacity:.5}
+background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.5}
 .card-title{font-size:11px;color:var(--muted);text-transform:uppercase;
-letter-spacing:1.5px;margin-bottom:14px;font-weight:700;
-display:flex;align-items:center;gap:8px}
-
+letter-spacing:1.5px;margin-bottom:14px;font-weight:700;display:flex;align-items:center;gap:8px}
 .hero{text-align:center;padding:24px 0}
 .hero h1{font-size:32px;font-weight:900;letter-spacing:-1px;margin-bottom:8px;
 background:linear-gradient(135deg,var(--cyan),var(--blue),var(--purple));
 background-size:200% 200%;animation:gradientShift 4s infinite;
 -webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hero p{color:var(--muted);font-size:14px}
-
 .label{display:block;font-size:11px;color:var(--muted);margin-bottom:8px;
 font-weight:600;text-transform:uppercase;letter-spacing:1px}
 input,select,textarea{width:100%;padding:14px 16px;border-radius:14px;
 border:1px solid var(--border);background:rgba(0,0,0,.4);color:var(--text);
-font-size:15px;font-family:inherit;margin-bottom:14px;outline:none;
-transition:all .25s}
+font-size:15px;font-family:inherit;margin-bottom:14px;outline:none;transition:all .25s}
 input:focus,select:focus,textarea:focus{border-color:var(--cyan);
 box-shadow:0 0 0 4px rgba(6,182,212,.15),0 0 20px rgba(6,182,212,.2);
 background:rgba(0,0,0,.6)}
 input::placeholder{color:#475569}
-
 button{width:100%;padding:16px;border:none;border-radius:14px;font-size:15px;
 font-weight:700;font-family:inherit;cursor:pointer;color:#fff;
-margin-bottom:10px;transition:all .2s;letter-spacing:.5px;position:relative;
-overflow:hidden}
+margin-bottom:10px;transition:all .2s;letter-spacing:.5px;position:relative;overflow:hidden}
 button::before{content:'';position:absolute;inset:0;
 background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);
 transform:translateX(-100%);transition:.6s}
@@ -273,20 +259,15 @@ button:active{transform:scale(.97)}
 button:disabled{opacity:.4;cursor:not-allowed}
 .btn-primary{background:linear-gradient(135deg,var(--cyan),var(--blue));
 box-shadow:0 8px 24px rgba(6,182,212,.4),inset 0 1px 0 rgba(255,255,255,.2)}
-.btn-primary:hover{box-shadow:0 12px 32px rgba(6,182,212,.6)}
 .btn-success{background:linear-gradient(135deg,var(--green),#059669);
 box-shadow:0 8px 24px rgba(16,185,129,.4)}
 .btn-danger{background:linear-gradient(135deg,var(--red),#dc2626);
 box-shadow:0 8px 24px rgba(239,68,68,.4)}
-.btn-ghost{background:rgba(255,255,255,.05);border:1px solid var(--border);
-color:var(--text)}
-.btn-ghost:hover{background:rgba(255,255,255,.08)}
+.btn-ghost{background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text)}
 .btn-sm{padding:12px;font-size:13px;border-radius:12px;margin-bottom:8px}
-
 .row{display:flex;gap:10px}
 .row>button{margin-bottom:0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-
 .stat{background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
 border:1px solid var(--border);border-radius:16px;padding:18px;text-align:center;
 position:relative;overflow:hidden;transition:.3s}
@@ -305,27 +286,21 @@ letter-spacing:1px;font-weight:700}
 -webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .stat.gd .v{background:linear-gradient(135deg,var(--gold),#fcd34d);
 -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-
 .pair{background:rgba(255,255,255,.03);border:1px solid var(--border);
-border-radius:16px;padding:16px;margin-bottom:12px;transition:.3s;
-animation:slideIn .5s ease}
-.pair:hover{border-color:rgba(6,182,212,.3);
-box-shadow:0 8px 24px rgba(6,182,212,.15)}
+border-radius:16px;padding:16px;margin-bottom:12px;transition:.3s;animation:slideIn .5s ease}
+.pair:hover{border-color:rgba(6,182,212,.3);box-shadow:0 8px 24px rgba(6,182,212,.15)}
 .pair-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .pair-em{font-weight:700;font-size:15px;word-break:break-all;color:#fff}
 .pair-tk{font-size:11px;color:var(--muted);font-family:monospace;margin-bottom:10px;
 padding:6px 10px;background:rgba(0,0,0,.3);border-radius:8px;display:inline-block}
-.pair-st{display:flex;gap:14px;font-size:13px;color:var(--muted);margin-bottom:10px;
-flex-wrap:wrap}
+.pair-st{display:flex;gap:14px;font-size:13px;color:var(--muted);margin-bottom:10px;flex-wrap:wrap}
 .pair-st b{color:#fff;font-weight:700}
 .pill-run{padding:5px 12px;border-radius:999px;font-size:10px;font-weight:800;
 background:rgba(16,185,129,.15);color:var(--green);
-border:1px solid rgba(16,185,129,.3);letter-spacing:.5px;
-animation:pulse 1.5s infinite}
+border:1px solid rgba(16,185,129,.3);letter-spacing:.5px;animation:pulse 1.5s infinite}
 .pill-stop{padding:5px 12px;border-radius:999px;font-size:10px;font-weight:800;
 background:rgba(148,163,184,.1);color:var(--muted);border:1px solid var(--border);
 letter-spacing:.5px}
-
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(12px);
 display:none;align-items:flex-end;justify-content:center;z-index:100}
 .modal-bg.show{display:flex;animation:slideIn .2s ease}
@@ -335,7 +310,6 @@ padding:24px;width:100%;max-width:480px;animation:up .35s cubic-bezier(.2,.9,.3,
 .modal-title{font-size:20px;font-weight:800;margin-bottom:20px;
 background:linear-gradient(135deg,#fff,#94a3b8);
 -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-
 .toast{position:fixed;top:20px;right:20px;padding:14px 18px;border-radius:14px;
 background:rgba(15,23,42,.95);backdrop-filter:blur(20px);
 border:1px solid var(--border);color:#fff;font-size:13px;font-weight:600;
@@ -345,7 +319,6 @@ box-shadow:0 8px 32px rgba(0,0,0,.4)}
 .toast.show{opacity:1;transform:translateX(0)}
 .toast.success{border-color:var(--green);box-shadow:0 0 24px rgba(16,185,129,.3)}
 .toast.error{border-color:var(--red);box-shadow:0 0 24px rgba(239,68,68,.3)}
-
 .live-box{background:linear-gradient(135deg,rgba(6,182,212,.08),rgba(139,92,246,.08));
 border:1px solid rgba(6,182,212,.2);border-radius:16px;padding:16px;margin-bottom:12px;
 animation:glow 3s infinite}
@@ -358,7 +331,6 @@ margin-bottom:12px;text-transform:uppercase}
 letter-spacing:1px;font-weight:700;margin-top:2px}
 .live-stat.ok .n{color:var(--green)}
 .live-stat.fail .n{color:var(--red)}
-
 .progress-ring{width:100px;height:100px;margin:0 auto 14px;position:relative}
 .progress-ring svg{transform:rotate(-90deg)}
 .progress-ring circle{fill:none;stroke-width:6;stroke-linecap:round}
@@ -368,19 +340,15 @@ letter-spacing:1px;font-weight:700;margin-top:2px}
 justify-content:center;font-size:20px;font-weight:900;
 background:linear-gradient(135deg,var(--cyan),var(--blue));
 -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-
 .empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:14px}
 .empty .icon{font-size:40px;margin-bottom:12px;opacity:.5;display:block}
-
 .sparkle{position:fixed;width:6px;height:6px;border-radius:50%;
-background:var(--cyan);pointer-events:none;z-index:999;
-box-shadow:0 0 10px var(--cyan)}
+background:var(--cyan);pointer-events:none;z-index:999;box-shadow:0 0 10px var(--cyan)}
 </style>
 </head>
 <body>
 <div class="app">
 
-<!-- HEADER -->
 <div class="header">
   <div class="logo">
     <div class="logo-icon">🚀</div>
@@ -392,7 +360,6 @@ box-shadow:0 0 10px var(--cyan)}
   </div>
 </div>
 
-<!-- SETUP SCREEN -->
 <div id="setupScreen">
   <div class="card" style="animation-delay:.1s">
     <div class="hero">
@@ -407,46 +374,24 @@ box-shadow:0 0 10px var(--cyan)}
   </div>
 </div>
 
-<!-- MAIN APP -->
 <div id="mainApp" style="display:none">
-
   <div class="card">
     <div class="card-title">📊 Live Stats</div>
     <div class="grid2">
-      <div class="stat">
-        <span class="icon">📤</span>
-        <div class="v" id="sTotal">0</div>
-        <div class="l">Total</div>
-      </div>
-      <div class="stat g">
-        <span class="icon">✅</span>
-        <div class="v" id="sOk">0</div>
-        <div class="l">Success</div>
-      </div>
-      <div class="stat r">
-        <span class="icon">❌</span>
-        <div class="v" id="sFail">0</div>
-        <div class="l">Failed</div>
-      </div>
-      <div class="stat gd">
-        <span class="icon">🔁</span>
-        <div class="v" id="sCycles">0</div>
-        <div class="l">Cycles</div>
-      </div>
+      <div class="stat"><span class="icon">📤</span><div class="v" id="sTotal">0</div><div class="l">Total</div></div>
+      <div class="stat g"><span class="icon">✅</span><div class="v" id="sOk">0</div><div class="l">Success</div></div>
+      <div class="stat r"><span class="icon">❌</span><div class="v" id="sFail">0</div><div class="l">Failed</div></div>
+      <div class="stat gd"><span class="icon">🔁</span><div class="v" id="sCycles">0</div><div class="l">Cycles</div></div>
     </div>
   </div>
-
   <div class="card">
     <button class="btn-primary" onclick="openAdd()">➕ ADD EMAIL</button>
   </div>
-
   <div id="pairsContainer"></div>
-
 </div>
 
 </div>
 
-<!-- ADD MODAL -->
 <div class="modal-bg" id="addModal">
   <div class="modal">
     <div class="modal-title">📧 Add Account</div>
@@ -461,7 +406,6 @@ box-shadow:0 0 10px var(--cyan)}
   </div>
 </div>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <svg width="0" height="0" style="position:absolute">
@@ -474,10 +418,7 @@ box-shadow:0 0 10px var(--cyan)}
 </svg>
 
 <script>
-const state = {
-  uid: localStorage.getItem('uid') || '',
-  pairs: {},
-};
+const state = { uid: localStorage.getItem('uid') || '', pairs: {} };
 
 function toast(msg, type='success') {
   const el = document.getElementById('toast');
@@ -509,7 +450,6 @@ async function api(p, m='GET', b=null) {
   return (await fetch(p, o)).json();
 }
 
-// Setup
 function startFromSetup() {
   const t = document.getElementById('su').value.trim();
   const e = document.getElementById('se').value.trim();
@@ -519,13 +459,11 @@ function startFromSetup() {
     state.uid = 'u_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     localStorage.setItem('uid', state.uid);
   }
-  // Register
   api('/api/init', 'POST', { uid: state.uid }).then(() => {
     document.getElementById('setupScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     toast('✅ Setup complete!');
     sparkle(window.innerWidth/2, window.innerHeight/2);
-    // Immediately add pair
     api('/api/pairs/add', 'POST', { uid: state.uid, token: t, email: e, autostart: true })
       .then(r => { if (r.success) refresh(); });
     refresh();
@@ -680,7 +618,6 @@ function dl(pid, type) {
     + '&pair_id=' + encodeURIComponent(pid) + '&type=' + type;
 }
 
-// Auto-resume
 if (state.uid) {
   api('/api/init', 'POST', { uid: state.uid }).then(() => {
     document.getElementById('setupScreen').style.display = 'none';
@@ -742,23 +679,14 @@ def api_pairs_add():
 
     pid = gen_pid()
     usr.setdefault("pairs", {})[pid] = {
-        "id": pid,
-        "token": token,
-        "email": email,
-        "cycles": 0,
-        "success": 0,
-        "fail": 0,
-        "success_log": [],
-        "fail_log": [],
-        "running": False,
-        "created_at": time.time(),
-        "last_time": "—",
+        "id": pid, "token": token, "email": email,
+        "cycles": 0, "success": 0, "fail": 0,
+        "success_log": [], "fail_log": [],
+        "running": False, "created_at": time.time(), "last_time": "—",
     }
     save(d)
-
     if autostart:
         start_pair(uid, pid)
-
     return jsonify({"success": True, "pair_id": pid})
 
 
@@ -794,7 +722,7 @@ def api_pairs_delete():
 def api_logs_download():
     uid = request.args.get("uid", "")
     pid = request.args.get("pair_id", "")
-    log_type = request.args.get("type", "success")  # "success" | "fail"
+    log_type = request.args.get("type", "success")
 
     d = load()
     usr = d["users"].get(uid)
@@ -814,9 +742,7 @@ def api_logs_download():
         filename = f"failed_{p['email'].split('@')[0]}_{int(time.time())}.txt"
 
     lines = [
-        "=" * 70,
-        f"OTP BLASTER — {title}",
-        "=" * 70,
+        "=" * 70, f"OTP BLASTER — {title}", "=" * 70,
         f"Email: {p['email']}",
         f"Token: ...{p['token'][-10:]}",
         f"Generated: {datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')}",
@@ -824,10 +750,8 @@ def api_logs_download():
         f"Total Success: {p.get('success', 0)}",
         f"Total Failed: {p.get('fail', 0)}",
         f"Entries in this file: {len(entries)}",
-        "=" * 70,
-        "",
+        "=" * 70, "",
     ]
-
     if not entries:
         lines.append("(No entries yet)")
     else:
@@ -837,9 +761,8 @@ def api_logs_download():
             body = (e.get("body", "") or "").replace("\n", " ")[:120]
             lines.append(f"{i:<7}{e.get('time', ''):<22}{e.get('api', ''):<8}{body}")
 
-    content = "\n".join(lines)
     return Response(
-        content,
+        "\n".join(lines),
         mimetype="text/plain",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
@@ -856,8 +779,11 @@ def resume_all():
                 start_pair(uid, pid)
 
 
+# Vercel / Railway auto-detect `app` variable
+resume_all()
+
+
 if __name__ == "__main__":
-    resume_all()
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 Running on http://0.0.0.0:{port}")
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
